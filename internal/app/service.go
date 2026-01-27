@@ -3,18 +3,21 @@ package app
 import (
 	"context"
 
-	"github.com/nrnasyrova/fx-rate-service/internal/domain/models"
-	"github.com/nrnasyrova/fx-rate-service/internal/domain/services"
+	"github.com/nrnasyrova/fx-rate-service/internal/domain/rate"
 )
 
 type RateService struct {
-	repo services.RateRepository
+	repo RateRepository
 }
 
-func NewRateService(repo services.RateRepository) *RateService {
+func NewRateService(repo RateRepository) *RateService {
 	return &RateService{repo: repo}
 }
 
-func (h *RateService) GetLatest(ctx context.Context, pair models.CurrencyPair) (models.Rate, error) {
-	return h.repo.GetLatest(ctx, pair)
+func (rs *RateService) GetLatest(ctx context.Context, pair rate.CurrencyPair) (rate.Rate, error) {
+	return rs.repo.GetLatest(ctx, pair)
+}
+
+func (rs *RateService) RefreshRate(ctx context.Context, pair rate.CurrencyPair) (string, error) {
+	return "", nil
 }

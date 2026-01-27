@@ -1,4 +1,4 @@
-package models
+package rate
 
 type Rate struct {
 	Pair        CurrencyPair
