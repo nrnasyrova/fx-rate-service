@@ -21,3 +21,6 @@ func (r *RateRepository) GetLatest(ctx context.Context, pair rate.CurrencyPair) 
 		UpdatedAtMs: 1640995200000,
 	}, nil
 }
+func (r *RateRepository) Upsert(ctx context.Context, pair rate.CurrencyPair, quote rate.QuoteE6) error {
+	return nil
+}

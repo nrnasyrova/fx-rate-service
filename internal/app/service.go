@@ -7,17 +7,40 @@ import (
 )
 
 type RateService struct {
-	repo RateRepository
+	rateRepo        RateRepository
+	rateRefreshRepo RateRefreshRepository
+	rateProvider    RateProvider
+	refreshChan     chan refreshTask
 }
 
-func NewRateService(repo RateRepository) *RateService {
-	return &RateService{repo: repo}
+type refreshTask struct {
+	id   string
+	pair rate.CurrencyPair
+}
+
+func NewRateService(rateRepo RateRepository, rateRefreshRepo RateRefreshRepository, rateProvider RateProvider) *RateService {
+	return &RateService{
+		rateRepo:        rateRepo,
+		rateRefreshRepo: rateRefreshRepo,
+		rateProvider:    rateProvider,
+		refreshChan:     make(chan refreshTask, 100),
+	}
 }
 
 func (rs *RateService) GetLatest(ctx context.Context, pair rate.CurrencyPair) (rate.Rate, error) {
-	return rs.repo.GetLatest(ctx, pair)
+	return rs.rateRepo.GetLatest(ctx, pair)
 }
 
 func (rs *RateService) RefreshRate(ctx context.Context, pair rate.CurrencyPair) (string, error) {
-	return "", nil
+	refreshID, created, err := rs.rateRefreshRepo.GetOrCreateRequest(ctx, pair)
+
+	if err != nil {
+		return "", err
+	}
+
+	if created {
+		rs.refreshChan <- refreshTask{refreshID, pair}
+	}
+
+	return refreshID, nil
 }
