@@ -2,14 +2,19 @@ package postgres
 
 import (
 	"context"
+	"database/sql"
 
 	"github.com/nrnasyrova/fx-rate-service/internal/domain/rate"
 )
 
-type RateRefreshRepository struct{}
+type RateRefreshRepository struct {
+	db *sql.DB
+}
 
-func NewRateRefreshRepository() *RateRefreshRepository {
-	return &RateRefreshRepository{}
+func NewRateRefreshRepository(db *sql.DB) *RateRefreshRepository {
+	return &RateRefreshRepository{
+		db: db,
+	}
 }
 
 func (r *RateRefreshRepository) GetOrCreateRequest(ctx context.Context, pair rate.CurrencyPair) (string, bool, error) {

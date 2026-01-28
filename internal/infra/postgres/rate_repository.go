@@ -2,15 +2,19 @@ package postgres
 
 import (
 	"context"
+	"database/sql"
 
 	"github.com/nrnasyrova/fx-rate-service/internal/domain/rate"
 )
 
 type RateRepository struct {
+	db *sql.DB
 }
 
-func NewRateRepository() *RateRepository {
-	return &RateRepository{}
+func NewRateRepository(db *sql.DB) *RateRepository {
+	return &RateRepository{
+		db: db,
+	}
 }
 
 func (r *RateRepository) GetLatest(ctx context.Context, pair rate.CurrencyPair) (rate.Rate, error) {
