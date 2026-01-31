@@ -21,12 +21,11 @@ func NewRefreshRateRepository(db *sql.DB) *RefreshRateRepository {
 }
 
 func (r *RefreshRateRepository) GetOrCreate(ctx context.Context, pair models.CurrencyPair) (string, bool, error) {
-
 	const q = `
         INSERT INTO refresh_requests (base_currency, quote_currency, status)
         VALUES ($1, $2, $3)
         ON CONFLICT (base_currency, quote_currency) WHERE status = 'processing'
-        DO UPDATE SET updated_at = NOW()
+        DO UPDATE SET last_requested_at = NOW()
         RETURNING id, (xmax = 0) AS created;
     `
 

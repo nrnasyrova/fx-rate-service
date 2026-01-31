@@ -32,17 +32,17 @@ func (rs *RateService) GetLatest(ctx context.Context, pair models.CurrencyPair) 
 }
 
 func (rs *RateService) RefreshRate(ctx context.Context, pair models.CurrencyPair) (string, error) {
-	refreshID, created, err := rs.rateRefreshRepo.GetOrCreate(ctx, pair)
+	refreshReqID, created, err := rs.rateRefreshRepo.GetOrCreate(ctx, pair)
 
 	if err != nil {
 		return "", err
 	}
 
 	if created {
-		rs.refreshChan <- refreshTask{refreshID, pair}
+		rs.refreshChan <- refreshTask{refreshReqID, pair}
 	}
 
-	return refreshID, nil
+	return refreshReqID, nil
 }
 
 func (rs *RateService) GetRefreshRequest(ctx context.Context, id string) (models.RefreshRequest, error) {

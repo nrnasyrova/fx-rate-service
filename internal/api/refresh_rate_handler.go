@@ -13,8 +13,7 @@ type RefreshRateHandler struct {
 }
 
 type refreshRequest struct {
-	From string `json:"from"`
-	To   string `json:"to"`
+	Pair string `json:"pair"`
 }
 
 type refreshResponse struct {
@@ -33,16 +32,15 @@ func (h *RefreshRateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	currencyPair, err := models.NewCurrencyPair(req.From, req.To)
+	currencyPair, err := models.ParseCurrencyPair(req.Pair)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		handleError(w, err)
 		return
 	}
 
 	id, err := h.service.RefreshRate(r.Context(), currencyPair)
-
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		handleError(w, err)
 		return
 	}
 

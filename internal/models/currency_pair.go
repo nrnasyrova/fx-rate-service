@@ -1,5 +1,9 @@
 package models
 
+import (
+	"strings"
+)
+
 type CurrencyPair struct {
 	baseCurrency  CurrencyCode
 	quoteCurrency CurrencyCode
@@ -36,4 +40,13 @@ func (p CurrencyPair) QuoteCurrency() CurrencyCode {
 
 func (p CurrencyPair) String() string {
 	return p.baseCurrency.String() + "/" + p.quoteCurrency.String()
+}
+
+func ParseCurrencyPair(pairStr string) (CurrencyPair, error) {
+	parts := strings.Split(pairStr, "/")
+	if len(parts) != 2 {
+		return CurrencyPair{}, ErrInvalidPairFormat
+	}
+
+	return NewCurrencyPair(parts[0], parts[1])
 }

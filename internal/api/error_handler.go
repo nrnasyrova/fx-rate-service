@@ -9,7 +9,7 @@ import (
 
 func handleError(w http.ResponseWriter, err error) {
 	switch {
-	case errors.Is(err, models.ErrInvalidCurrencyCode) || errors.Is(err, models.ErrSameCurrencies):
+	case errors.Is(err, models.ErrInvalidCurrencyCode) || errors.Is(err, models.ErrSameCurrencies) || errors.Is(err, models.ErrInvalidPairFormat):
 		http.Error(w, err.Error(), http.StatusBadRequest)
 	case errors.Is(err, models.ErrNotFound):
 		http.Error(w, err.Error(), http.StatusNotFound)
