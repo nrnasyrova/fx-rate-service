@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"log"
 
 	"github.com/nrnasyrova/fx-rate-service/internal/models"
 )
@@ -15,18 +16,26 @@ func (rs *RateService) StartWorker(ctx context.Context) {
 		case task := <-rs.refreshChan:
 			price, err := rs.rateProvider.FetchRate(ctx, task.pair)
 			if err != nil {
-
+				errMsg := err.Error()
+				if updateErr := rs.rateRefreshRepo.Update(ctx, task.id, nil, models.Error, &errMsg); updateErr != nil {
+					log.Printf("refresh worker: update failure status for %s: %v", task.id, updateErr)
+				}
+				continue
 			}
 
-			//TODO introduce transaction for upddting and inserting
-			err = rs.rateRefreshRepo.Update(ctx, task.id, models.NewValueE6FromFloat(price), models.Success, nil)
-			if err != nil {
+			quote := models.NewValueE6FromFloat(price)
 
+			// TODO: use a single DB transaction for Upsert + Update.
+			if err := rs.rateRepo.Upsert(ctx, task.pair, quote); err != nil {
+				errMsg := err.Error()
+				if updateErr := rs.rateRefreshRepo.Update(ctx, task.id, nil, models.Error, &errMsg); updateErr != nil {
+					log.Printf("refresh worker: update failure status for %s: %v", task.id, updateErr)
+				}
+				continue
 			}
 
-			err = rs.rateRepo.Upsert(ctx, task.pair, models.NewValueE6FromFloat(price))
-			if err != nil {
-
+			if err := rs.rateRefreshRepo.Update(ctx, task.id, &quote, models.Success, nil); err != nil {
+				log.Printf("refresh worker: update success status for %s: %v", task.id, err)
 			}
 
 		case <-ctx.Done():

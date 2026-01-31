@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS refresh_rate_requests (
     value_e6 BIGINT,
     status TEXT NOT NULL CHECK (status IN ('processing', 'success','error')),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     error_message TEXT
 );
 

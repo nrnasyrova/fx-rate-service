@@ -45,6 +45,6 @@ func (rs *RateService) RefreshRate(ctx context.Context, pair models.CurrencyPair
 	return refreshID, nil
 }
 
-func (rs *RateService) GetByReqId(ctx context.Context, reqId string) (models.Rate, error) {
+func (rs *RateService) GetByReqId(ctx context.Context, reqId string) (models.RefreshRateRequest, error) {
 	return rs.rateRefreshRepo.Get(ctx, reqId)
 }

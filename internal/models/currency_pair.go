@@ -16,7 +16,7 @@ func NewCurrencyPair(baseCurrency, quoteCurrency string) (CurrencyPair, error) {
 		return CurrencyPair{}, err
 	}
 
-	if baseCurrency == quoteCurrency {
+	if bc == qc {
 		return CurrencyPair{}, ErrSameCurrencies
 	}
 

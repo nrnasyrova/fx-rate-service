@@ -14,10 +14,12 @@ type GetRateByReqIdHandler struct {
 }
 
 type getRateByIdResponse struct {
-	Id        string    `json:"id"`
+	ID        string    `json:"id"`
 	From      string    `json:"from"`
 	To        string    `json:"to"`
-	QuoteE6   int64     `json:"quote_e6"`
+	Status    string    `json:"status"`
+	QuoteE6   *int64    `json:"quote_e6,omitempty"`
+	ErrorMsg  *string   `json:"error_message,omitempty"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
@@ -26,20 +28,32 @@ func NewGetRateByReqIdHandler(service *app.RateService) *GetRateByReqIdHandler {
 }
 
 func (h *GetRateByReqIdHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	reqId := r.URL.Query().Get("id")
+	reqID := r.URL.Query().Get("id")
+	if reqID == "" {
+		http.Error(w, "missing id", http.StatusBadRequest)
+		return
+	}
 
-	rate, err := h.service.GetByReqId(r.Context(), reqId)
+	refreshReq, err := h.service.GetByReqId(r.Context(), reqID)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("internal err: %v", err), http.StatusInternalServerError)
 		return
 	}
 
+	var quoteE6 *int64
+	if refreshReq.ValueE6 != nil {
+		v := int64(*refreshReq.ValueE6)
+		quoteE6 = &v
+	}
+
 	response := getRateByIdResponse{
-		Id:        reqId,
-		From:      rate.Pair.BaseCurrency().String(),
-		To:        rate.Pair.QuoteCurrency().String(),
-		QuoteE6:   int64(rate.Quote),
-		UpdatedAt: rate.UpdatedAt,
+		ID:        refreshReq.ID,
+		From:      refreshReq.Pair.BaseCurrency().String(),
+		To:        refreshReq.Pair.QuoteCurrency().String(),
+		Status:    string(refreshReq.Status),
+		QuoteE6:   quoteE6,
+		ErrorMsg:  refreshReq.ErrorMsg,
+		UpdatedAt: refreshReq.UpdatedAt,
 	}
 
 	w.Header().Set("Content-Type", "application/json")

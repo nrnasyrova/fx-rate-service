@@ -43,7 +43,7 @@ func (r *RefreshRateRepository) GetOrCreateRequest(ctx context.Context, pair mod
 	return id, created, nil
 }
 
-func (r *RefreshRateRepository) Update(ctx context.Context, id string, quote models.ValueE6, status models.Status, errorMessage *string) error {
+func (r *RefreshRateRepository) Update(ctx context.Context, id string, quote *models.ValueE6, status models.Status, errorMessage *string) error {
 	const q = `
 		UPDATE refresh_rate_requests
 		SET value_e6 = $1, status = $2, error_message = $3, updated_at = NOW()
@@ -53,33 +53,53 @@ func (r *RefreshRateRepository) Update(ctx context.Context, id string, quote mod
 	return err
 }
 
-func (r *RefreshRateRepository) Get(ctx context.Context, id string) (models.Rate, error) {
+func (r *RefreshRateRepository) Get(ctx context.Context, id string) (models.RefreshRateRequest, error) {
 	const q = `
-		SELECT base_currency, quote_currency, value_e6, updated_at 
+		SELECT id, base_currency, quote_currency, value_e6, status, created_at, COALESCE(updated_at, created_at), error_message
 		FROM refresh_rate_requests 
 		WHERE id = $1`
 
 	var (
+		reqID         string
 		baseCurrency  string
 		quoteCurrency string
-		valueE6       int64
+		valueE6       sql.NullInt64
+		status        string
+		createdAt     time.Time
 		updatedAt     time.Time
+		errorMessage  sql.NullString
 	)
 
-	err := r.db.QueryRowContext(ctx, q, id).Scan(&baseCurrency, &quoteCurrency, &valueE6, &updatedAt)
+	err := r.db.QueryRowContext(ctx, q, id).Scan(&reqID, &baseCurrency, &quoteCurrency, &valueE6, &status, &createdAt, &updatedAt, &errorMessage)
 	if err != nil {
-		return models.Rate{}, err
+		return models.RefreshRateRequest{}, err
 
 	}
 
 	pair, err := models.NewCurrencyPair(baseCurrency, quoteCurrency)
 	if err != nil {
-		return models.Rate{}, err
+		return models.RefreshRateRequest{}, err
 	}
 
-	return models.Rate{
+	var quote *models.ValueE6
+	if valueE6.Valid {
+		v := models.ValueE6(valueE6.Int64)
+		quote = &v
+	}
+
+	var errMsg *string
+	if errorMessage.Valid {
+		v := errorMessage.String
+		errMsg = &v
+	}
+
+	return models.RefreshRateRequest{
+		ID:        reqID,
 		Pair:      pair,
-		Quote:     models.ValueE6(valueE6),
+		ValueE6:   quote,
+		Status:    models.Status(status),
+		CreatedAt: createdAt,
 		UpdatedAt: updatedAt,
+		ErrorMsg:  errMsg,
 	}, nil
 }
