@@ -14,6 +14,7 @@ type RateRepository interface {
 type RateRefreshRepository interface {
 	Update(ctx context.Context, id string, valueE6 models.ValueE6, status models.Status, errorMessage *string) error
 	GetOrCreateRequest(ctx context.Context, pair models.CurrencyPair) (string, bool, error)
+	Get(ctx context.Context, id string) (models.Rate, error)
 }
 
 type RateProvider interface {
