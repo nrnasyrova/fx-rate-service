@@ -33,3 +33,7 @@ func (p CurrencyPair) BaseCurrency() CurrencyCode {
 func (p CurrencyPair) QuoteCurrency() CurrencyCode {
 	return p.quoteCurrency
 }
+
+func (p CurrencyPair) String() string {
+	return p.baseCurrency.String() + "/" + p.quoteCurrency.String()
+}

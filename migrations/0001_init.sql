@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS rates (
     PRIMARY KEY (base_currency, quote_currency)
 );
 
-CREATE TABLE IF NOT EXISTS refresh_rate_requests (
+CREATE TABLE IF NOT EXISTS refresh_requests (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     base_currency VARCHAR(3) NOT NULL,
     quote_currency VARCHAR(3) NOT NULL,
@@ -18,10 +18,10 @@ CREATE TABLE IF NOT EXISTS refresh_rate_requests (
     error_message TEXT
 );
 
-CREATE UNIQUE INDEX rrr_one_processing_per_pair
-    ON refresh_rate_requests (base_currency, quote_currency)
+CREATE UNIQUE INDEX rr_one_processing_per_pair
+    ON refresh_requests (base_currency, quote_currency)
     WHERE status = 'processing';
 
 -- +goose Down
 DROP TABLE IF EXISTS rates;
-DROP TABLE IF EXISTS refresh_rate_requests;
+DROP TABLE IF EXISTS refresh_requests;

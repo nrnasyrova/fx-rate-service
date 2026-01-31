@@ -5,4 +5,5 @@ import "errors"
 var (
 	ErrInvalidCurrencyCode = errors.New("invalid currency code")
 	ErrSameCurrencies      = errors.New("currency pair must have different currencies")
+	ErrNotFound            = errors.New("not found")
 )

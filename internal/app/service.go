@@ -8,7 +8,7 @@ import (
 
 type RateService struct {
 	rateRepo        RateRepository
-	rateRefreshRepo RateRefreshRepository
+	rateRefreshRepo RefreshRequestRepository
 	rateProvider    RateProvider
 	refreshChan     chan refreshTask
 }
@@ -18,7 +18,7 @@ type refreshTask struct {
 	pair models.CurrencyPair
 }
 
-func NewRateService(rateRepo RateRepository, rateRefreshRepo RateRefreshRepository, rateProvider RateProvider) *RateService {
+func NewRateService(rateRepo RateRepository, rateRefreshRepo RefreshRequestRepository, rateProvider RateProvider) *RateService {
 	return &RateService{
 		rateRepo:        rateRepo,
 		rateRefreshRepo: rateRefreshRepo,
@@ -32,7 +32,7 @@ func (rs *RateService) GetLatest(ctx context.Context, pair models.CurrencyPair) 
 }
 
 func (rs *RateService) RefreshRate(ctx context.Context, pair models.CurrencyPair) (string, error) {
-	refreshID, created, err := rs.rateRefreshRepo.GetOrCreateRequest(ctx, pair)
+	refreshID, created, err := rs.rateRefreshRepo.GetOrCreate(ctx, pair)
 
 	if err != nil {
 		return "", err
@@ -45,6 +45,6 @@ func (rs *RateService) RefreshRate(ctx context.Context, pair models.CurrencyPair
 	return refreshID, nil
 }
 
-func (rs *RateService) GetByReqId(ctx context.Context, reqId string) (models.RefreshRateRequest, error) {
-	return rs.rateRefreshRepo.Get(ctx, reqId)
+func (rs *RateService) GetRefreshRequest(ctx context.Context, id string) (models.RefreshRequest, error) {
+	return rs.rateRefreshRepo.Get(ctx, id)
 }

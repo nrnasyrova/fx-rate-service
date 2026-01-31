@@ -2,7 +2,7 @@ package models
 
 import "time"
 
-type RefreshRateRequest struct {
+type RefreshRequest struct {
 	ID        string
 	Pair      CurrencyPair
 	ValueE6   *ValueE6
@@ -19,3 +19,7 @@ const (
 	Success    Status = "success"
 	Error      Status = "error"
 )
+
+func (s Status) String() string {
+	return string(s)
+}

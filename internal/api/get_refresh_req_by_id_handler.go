@@ -2,41 +2,46 @@ package api
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/nrnasyrova/fx-rate-service/internal/app"
 )
 
-type GetRateByReqIdHandler struct {
+type GetRefreshReqByIdHandler struct {
 	service *app.RateService
 }
 
-type getRateByIdResponse struct {
+type getRefreshReqByIdResponse struct {
 	ID        string    `json:"id"`
-	From      string    `json:"from"`
-	To        string    `json:"to"`
+	Pair      string    `json:"pair"`
 	Status    string    `json:"status"`
 	QuoteE6   *int64    `json:"quote_e6,omitempty"`
 	ErrorMsg  *string   `json:"error_message,omitempty"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
-func NewGetRateByReqIdHandler(service *app.RateService) *GetRateByReqIdHandler {
-	return &GetRateByReqIdHandler{service: service}
+func NewGetRefreshRateByReqIdHandler(service *app.RateService) *GetRefreshReqByIdHandler {
+	return &GetRefreshReqByIdHandler{service: service}
 }
 
-func (h *GetRateByReqIdHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h *GetRefreshReqByIdHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	reqID := r.URL.Query().Get("id")
 	if reqID == "" {
 		http.Error(w, "missing id", http.StatusBadRequest)
 		return
 	}
 
-	refreshReq, err := h.service.GetByReqId(r.Context(), reqID)
+	err := uuid.Validate(reqID)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("internal err: %v", err), http.StatusInternalServerError)
+		http.Error(w, "invalid id", http.StatusBadRequest)
+		return
+	}
+
+	refreshReq, err := h.service.GetRefreshRequest(r.Context(), reqID)
+	if err != nil {
+		handleError(w, err)
 		return
 	}
 
@@ -46,11 +51,10 @@ func (h *GetRateByReqIdHandler) ServeHTTP(w http.ResponseWriter, r *http.Request
 		quoteE6 = &v
 	}
 
-	response := getRateByIdResponse{
+	response := getRefreshReqByIdResponse{
 		ID:        refreshReq.ID,
-		From:      refreshReq.Pair.BaseCurrency().String(),
-		To:        refreshReq.Pair.QuoteCurrency().String(),
-		Status:    string(refreshReq.Status),
+		Pair:      refreshReq.Pair.String(),
+		Status:    refreshReq.Status.String(),
 		QuoteE6:   quoteE6,
 		ErrorMsg:  refreshReq.ErrorMsg,
 		UpdatedAt: refreshReq.UpdatedAt,

@@ -11,10 +11,10 @@ type RateRepository interface {
 	Upsert(ctx context.Context, pair models.CurrencyPair, valueE6 models.ValueE6) error
 }
 
-type RateRefreshRepository interface {
+type RefreshRequestRepository interface {
 	Update(ctx context.Context, id string, valueE6 *models.ValueE6, status models.Status, errorMessage *string) error
-	GetOrCreateRequest(ctx context.Context, pair models.CurrencyPair) (string, bool, error)
-	Get(ctx context.Context, id string) (models.RefreshRateRequest, error)
+	GetOrCreate(ctx context.Context, pair models.CurrencyPair) (string, bool, error)
+	Get(ctx context.Context, id string) (models.RefreshRequest, error)
 }
 
 type RateProvider interface {

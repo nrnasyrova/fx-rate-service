@@ -3,6 +3,8 @@ package postgres
 import (
 	"context"
 	"database/sql"
+	"errors"
+	"fmt"
 	"time"
 
 	"github.com/nrnasyrova/fx-rate-service/internal/models"
@@ -18,10 +20,10 @@ func NewRefreshRateRepository(db *sql.DB) *RefreshRateRepository {
 	}
 }
 
-func (r *RefreshRateRepository) GetOrCreateRequest(ctx context.Context, pair models.CurrencyPair) (string, bool, error) {
+func (r *RefreshRateRepository) GetOrCreate(ctx context.Context, pair models.CurrencyPair) (string, bool, error) {
 
 	const q = `
-        INSERT INTO refresh_rate_requests (base_currency, quote_currency, status)
+        INSERT INTO refresh_requests (base_currency, quote_currency, status)
         VALUES ($1, $2, $3)
         ON CONFLICT (base_currency, quote_currency) WHERE status = 'processing'
         DO UPDATE SET updated_at = NOW()
@@ -45,7 +47,7 @@ func (r *RefreshRateRepository) GetOrCreateRequest(ctx context.Context, pair mod
 
 func (r *RefreshRateRepository) Update(ctx context.Context, id string, quote *models.ValueE6, status models.Status, errorMessage *string) error {
 	const q = `
-		UPDATE refresh_rate_requests
+		UPDATE refresh_requests
 		SET value_e6 = $1, status = $2, error_message = $3, updated_at = NOW()
 		WHERE id = $4;`
 
@@ -53,14 +55,14 @@ func (r *RefreshRateRepository) Update(ctx context.Context, id string, quote *mo
 	return err
 }
 
-func (r *RefreshRateRepository) Get(ctx context.Context, id string) (models.RefreshRateRequest, error) {
+func (r *RefreshRateRepository) Get(ctx context.Context, id string) (models.RefreshRequest, error) {
 	const q = `
-		SELECT id, base_currency, quote_currency, value_e6, status, created_at, COALESCE(updated_at, created_at), error_message
-		FROM refresh_rate_requests 
+		SELECT id, base_currency, quote_currency, value_e6, status, created_at, updated_at, error_message
+		FROM refresh_requests 
 		WHERE id = $1`
 
 	var (
-		reqID         string
+		ID            string
 		baseCurrency  string
 		quoteCurrency string
 		valueE6       sql.NullInt64
@@ -70,15 +72,18 @@ func (r *RefreshRateRepository) Get(ctx context.Context, id string) (models.Refr
 		errorMessage  sql.NullString
 	)
 
-	err := r.db.QueryRowContext(ctx, q, id).Scan(&reqID, &baseCurrency, &quoteCurrency, &valueE6, &status, &createdAt, &updatedAt, &errorMessage)
+	err := r.db.QueryRowContext(ctx, q, id).Scan(&ID, &baseCurrency, &quoteCurrency, &valueE6, &status, &createdAt, &updatedAt, &errorMessage)
 	if err != nil {
-		return models.RefreshRateRequest{}, err
+		if errors.Is(err, sql.ErrNoRows) {
+			return models.RefreshRequest{}, models.ErrNotFound
+		}
 
+		return models.RefreshRequest{}, fmt.Errorf("scanning refresh request: %w", err)
 	}
 
 	pair, err := models.NewCurrencyPair(baseCurrency, quoteCurrency)
 	if err != nil {
-		return models.RefreshRateRequest{}, err
+		return models.RefreshRequest{}, err
 	}
 
 	var quote *models.ValueE6
@@ -93,8 +98,8 @@ func (r *RefreshRateRepository) Get(ctx context.Context, id string) (models.Refr
 		errMsg = &v
 	}
 
-	return models.RefreshRateRequest{
-		ID:        reqID,
+	return models.RefreshRequest{
+		ID:        ID,
 		Pair:      pair,
 		ValueE6:   quote,
 		Status:    models.Status(status),
