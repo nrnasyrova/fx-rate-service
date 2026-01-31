@@ -2,10 +2,12 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/nrnasyrova/fx-rate-service/internal/app"
-	"github.com/nrnasyrova/fx-rate-service/internal/domain/rate"
+	"github.com/nrnasyrova/fx-rate-service/internal/models"
 )
 
 type LatestRateHandler struct {
@@ -13,10 +15,10 @@ type LatestRateHandler struct {
 }
 
 type latestRateResponse struct {
-	From        string `json:"from"`
-	To          string `json:"to"`
-	QuoteE6     int64  `json:"quote_e6"`
-	UpdatedAtMs int64  `json:"updated_at_ms"`
+	From      string    `json:"from"`
+	To        string    `json:"to"`
+	QuoteE6   int64     `json:"quote_e6"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 func NewLatestRateHandler(service *app.RateService) *LatestRateHandler {
@@ -27,7 +29,7 @@ func (h *LatestRateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	from := r.URL.Query().Get("from")
 	to := r.URL.Query().Get("to")
 
-	pair, err := rate.NewCurrencyPair(from, to)
+	pair, err := models.NewCurrencyPair(from, to)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -35,15 +37,15 @@ func (h *LatestRateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	latest, err := h.service.GetLatest(r.Context(), pair)
 	if err != nil {
-		http.Error(w, "internal error", http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("internal err: %v", err), http.StatusInternalServerError)
 		return
 	}
 
 	response := latestRateResponse{
-		From:        latest.Pair.From().String(),
-		To:          latest.Pair.To().String(),
-		QuoteE6:     int64(latest.Quote),
-		UpdatedAtMs: latest.UpdatedAtMs,
+		From:      latest.Pair.BaseCurrency().String(),
+		To:        latest.Pair.QuoteCurrency().String(),
+		QuoteE6:   int64(latest.Quote),
+		UpdatedAt: latest.UpdatedAt,
 	}
 
 	w.Header().Set("Content-Type", "application/json")

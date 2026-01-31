@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"github.com/nrnasyrova/fx-rate-service/internal/app"
-	"github.com/nrnasyrova/fx-rate-service/internal/domain/rate"
+	"github.com/nrnasyrova/fx-rate-service/internal/models"
 )
 
 type RefreshRateHandler struct {
@@ -33,7 +33,7 @@ func (h *RefreshRateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	currencyPair, err := rate.NewCurrencyPair(req.To, req.From)
+	currencyPair, err := models.NewCurrencyPair(req.From, req.To)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return

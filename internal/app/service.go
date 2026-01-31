@@ -3,7 +3,7 @@ package app
 import (
 	"context"
 
-	"github.com/nrnasyrova/fx-rate-service/internal/domain/rate"
+	"github.com/nrnasyrova/fx-rate-service/internal/models"
 )
 
 type RateService struct {
@@ -15,7 +15,7 @@ type RateService struct {
 
 type refreshTask struct {
 	id   string
-	pair rate.CurrencyPair
+	pair models.CurrencyPair
 }
 
 func NewRateService(rateRepo RateRepository, rateRefreshRepo RateRefreshRepository, rateProvider RateProvider) *RateService {
@@ -27,11 +27,11 @@ func NewRateService(rateRepo RateRepository, rateRefreshRepo RateRefreshReposito
 	}
 }
 
-func (rs *RateService) GetLatest(ctx context.Context, pair rate.CurrencyPair) (rate.Rate, error) {
+func (rs *RateService) GetLatest(ctx context.Context, pair models.CurrencyPair) (models.Rate, error) {
 	return rs.rateRepo.GetLatest(ctx, pair)
 }
 
-func (rs *RateService) RefreshRate(ctx context.Context, pair rate.CurrencyPair) (string, error) {
+func (rs *RateService) RefreshRate(ctx context.Context, pair models.CurrencyPair) (string, error) {
 	refreshID, created, err := rs.rateRefreshRepo.GetOrCreateRequest(ctx, pair)
 
 	if err != nil {

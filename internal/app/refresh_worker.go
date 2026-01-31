@@ -3,7 +3,7 @@ package app
 import (
 	"context"
 
-	"github.com/nrnasyrova/fx-rate-service/internal/domain/rate"
+	"github.com/nrnasyrova/fx-rate-service/internal/models"
 )
 
 type RefreshWorker struct {
@@ -19,12 +19,12 @@ func (rs *RateService) StartWorker(ctx context.Context) {
 			}
 
 			//TODO introduce transaction for upddting and inserting
-			err = rs.rateRefreshRepo.Update(ctx, task.id, rate.NewQuoteE6FromFloat(price))
+			err = rs.rateRefreshRepo.Update(ctx, task.id, models.NewValueE6FromFloat(price), models.Success, nil)
 			if err != nil {
 
 			}
 
-			err = rs.rateRepo.Upsert(ctx, task.pair, rate.NewQuoteE6FromFloat(price))
+			err = rs.rateRepo.Upsert(ctx, task.pair, models.NewValueE6FromFloat(price))
 			if err != nil {
 
 			}
