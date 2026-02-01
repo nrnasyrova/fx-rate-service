@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -16,74 +15,74 @@ import (
 type Client struct {
 	baseURL     string
 	accessToken string
-	client      *http.Client
+	httpClient  *http.Client
 }
 
-func NewClient(baseUrl string, accessToken string, timeout time.Duration) *Client {
+func NewClient(baseURL, accessToken string, timeout time.Duration) *Client {
 	return &Client{
-		baseURL:     baseUrl,
+		baseURL:     strings.TrimSuffix(baseURL, "/"),
 		accessToken: accessToken,
-		client: &http.Client{
-			Timeout: timeout,
-		},
+		httpClient:  &http.Client{Timeout: timeout},
 	}
 }
 
 type rateResponse struct {
-	Success *bool `json:"success"`
-	Error   *struct {
+	Success bool               `json:"success"`
+	Rates   map[string]float64 `json:"rates"`
+	Error   struct {
 		Type string `json:"type"`
 		Info string `json:"info"`
 	} `json:"error"`
-	Timestamp *int64             `json:"timestamp"`
-	Rates     map[string]float64 `json:"rates"`
-	Base      string             `json:"base"`
-	Date      string             `json:"date"`
 }
 
 func (c *Client) FetchRate(ctx context.Context, pair models.CurrencyPair) (float64, error) {
-	u, err := url.Parse(c.baseURL + "/latest")
-	if err != nil {
-		return 0, fmt.Errorf("parse base url: %w", err)
-	}
+	reqURL := c.buildLatestRateURL(pair)
 
-	q := u.Query()
-	q.Set("base", strings.ToUpper(pair.BaseCurrency().String()))
-	q.Set("symbols", strings.ToUpper(pair.QuoteCurrency().String()))
-	q.Set("access_key", c.accessToken)
-	u.RawQuery = q.Encode()
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)
 	if err != nil {
 		return 0, fmt.Errorf("create request: %w", err)
 	}
 
-	resp, err := c.client.Do(req)
-	if err != nil {
-		return 0, fmt.Errorf("http: %w", err)
-	}
-	defer resp.Body.Close()
-
-	body, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return 0, fmt.Errorf("provider status %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
+	var resp rateResponse
+	if err := c.execute(req, &resp); err != nil {
+		return 0, err
 	}
 
-	var parsed rateResponse
-	if err := json.Unmarshal(body, &parsed); err != nil {
-		return 0, fmt.Errorf("decode: %w", err)
-	}
-	if parsed.Success != nil && !*parsed.Success {
-		if parsed.Error != nil {
-			return 0, fmt.Errorf("provider error: %s (%s)", parsed.Error.Type, parsed.Error.Info)
-		}
-		return 0, fmt.Errorf("provider error")
+	if !resp.Success {
+		return 0, fmt.Errorf("api error: %s - %s", resp.Error.Type, resp.Error.Info)
 	}
 
-	rate, ok := parsed.Rates[strings.ToUpper(pair.QuoteCurrency().String())]
+	rate, ok := resp.Rates[pair.QuoteCurrency().String()]
 	if !ok {
-		return 0, fmt.Errorf("missing rate for %s", strings.ToUpper(pair.QuoteCurrency().String()))
+		return 0, fmt.Errorf("rate for %s not found", pair.QuoteCurrency().String())
 	}
 
 	return rate, nil
+}
+
+func (c *Client) buildLatestRateURL(pair models.CurrencyPair) string {
+	params := url.Values{}
+	params.Set("base", pair.BaseCurrency().String())
+	params.Set("symbols", pair.QuoteCurrency().String())
+	params.Set("access_key", c.accessToken)
+
+	return fmt.Sprintf("%s%s?%s", c.baseURL, "/latest", params.Encode())
+}
+
+func (c *Client) execute(req *http.Request, target interface{}) error {
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("http execute: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("unexpected status: %d", resp.StatusCode)
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(target); err != nil {
+		return fmt.Errorf("decode response: %w", err)
+	}
+
+	return nil
 }

@@ -25,7 +25,7 @@ func NewRateService(rateRepo RateRepository, rateRefreshRepo RefreshRequestRepos
 		rateRefreshRepo: rateRefreshRepo,
 		rateProvider:    rateProvider,
 		txManager:       txManager,
-		refreshChan:     make(chan refreshTask, 100), //TODO if fills up what to do?
+		refreshChan:     make(chan refreshTask, 1000), //TODO if fills up what to do?
 	}
 }
 
