@@ -4,10 +4,15 @@ import (
 	"errors"
 	"os"
 	"strings"
+	"time"
 )
 
 type Config struct {
-	HTTPAddr string
+	HTTPAddr       string
+	RefreshSweeper struct {
+		Interval   time.Duration
+		StaleAfter time.Duration
+	}
 	Postgres struct {
 		DSN string
 	}
@@ -24,6 +29,8 @@ func FromEnv() (Config, error) {
 	var cfg Config
 
 	cfg.HTTPAddr = getEnv("HTTP_ADDR", ":8080")
+	cfg.RefreshSweeper.Interval = getEnvDuration("REFRESH_SWEEP_INTERVAL", 30*time.Second)
+	cfg.RefreshSweeper.StaleAfter = getEnvDuration("REFRESH_STALE_AFTER", 5*time.Minute)
 	cfg.Postgres.DSN = os.Getenv("POSTGRES_DSN")
 	if strings.TrimSpace(cfg.Postgres.DSN) == "" {
 		return Config{}, errors.New("POSTGRES_DSN is required")
@@ -44,4 +51,17 @@ func getEnv(key, fallback string) string {
 		return fallback
 	}
 	return v
+}
+
+func getEnvDuration(key string, fallback time.Duration) time.Duration {
+	v := strings.TrimSpace(os.Getenv(key))
+	if v == "" {
+		return fallback
+	}
+
+	d, err := time.ParseDuration(v)
+	if err != nil {
+		return fallback
+	}
+	return d
 }

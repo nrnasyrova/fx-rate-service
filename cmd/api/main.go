@@ -63,6 +63,13 @@ func main() {
 		service.StartWorker(ctx)
 	}()
 
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		sweeper := app.NewStaleRefreshSweeper(refreshRepo, cfg.RefreshSweeper.Interval, cfg.RefreshSweeper.StaleAfter)
+		sweeper.Run(ctx)
+	}()
+
 	router := api.NewRouter(service)
 
 	srv := &http.Server{

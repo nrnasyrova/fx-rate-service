@@ -109,3 +109,19 @@ func (r *RefreshRateRepository) Get(ctx context.Context, id string) (models.Refr
 		ErrorMsg:  errMsg,
 	}, nil
 }
+
+func (r *RefreshRateRepository) MarkStaleProcessingRequest(ctx context.Context, staleBefore time.Time) error {
+	const q = `
+		UPDATE refresh_requests
+		SET status = $1, error_message = $2, updated_at = NOW()
+		WHERE status = $3 AND updated_at < $4;`
+
+	_, err := r.db.ExecContext(ctx, q,
+		models.Error.String(),
+		"marked as stale due to inactivity",
+		models.Processing.String(),
+		staleBefore,
+	)
+
+	return err
+}
