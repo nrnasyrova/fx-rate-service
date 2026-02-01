@@ -6,12 +6,11 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/nrnasyrova/fx-rate-service/internal/app"
 	"github.com/nrnasyrova/fx-rate-service/internal/models"
 )
 
 type LatestRateHandler struct {
-	service *app.RateService
+	service RateService
 }
 
 type latestRateResponse struct {
@@ -21,7 +20,7 @@ type latestRateResponse struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
-func NewLatestRateHandler(service *app.RateService) *LatestRateHandler {
+func NewLatestRateHandler(service RateService) *LatestRateHandler {
 	return &LatestRateHandler{service: service}
 }
 

@@ -4,12 +4,11 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/nrnasyrova/fx-rate-service/internal/app"
 	"github.com/nrnasyrova/fx-rate-service/internal/models"
 )
 
 type RefreshRateHandler struct {
-	service *app.RateService
+	service RateService
 }
 
 type refreshRequest struct {
@@ -20,13 +19,12 @@ type refreshResponse struct {
 	ID string `json:"id"`
 }
 
-func NewRefreshRateHandler(service *app.RateService) *RefreshRateHandler {
+func NewRefreshRateHandler(service RateService) *RefreshRateHandler {
 	return &RefreshRateHandler{service: service}
 }
 
 func (h *RefreshRateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var req refreshRequest
-
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return

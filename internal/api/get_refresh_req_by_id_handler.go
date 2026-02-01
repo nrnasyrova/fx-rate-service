@@ -6,11 +6,10 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/nrnasyrova/fx-rate-service/internal/app"
 )
 
 type GetRefreshReqByIdHandler struct {
-	service *app.RateService
+	service RateService
 }
 
 type getRefreshReqByIdResponse struct {
@@ -22,7 +21,7 @@ type getRefreshReqByIdResponse struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
-func NewGetRefreshRateByReqIdHandler(service *app.RateService) *GetRefreshReqByIdHandler {
+func NewGetRefreshRateByReqIdHandler(service RateService) *GetRefreshReqByIdHandler {
 	return &GetRefreshReqByIdHandler{service: service}
 }
 

@@ -3,9 +3,14 @@ package main
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
+	"sync"
+	"syscall"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -18,7 +23,6 @@ import (
 )
 
 func main() {
-
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatalf("config: %v", err)
@@ -34,22 +38,69 @@ func main() {
 		log.Fatalf("db open: %v", err)
 	}
 
-	defer db.Close()
+	defer func(db *sql.DB) {
+		if err := db.Close(); err != nil {
+			log.Printf("db close: %v", err)
+		}
+	}(db)
 
 	migrate(db, &cfg.Migrations.Dir)
 
 	//TODO configure DI if have time
 	rateRepo := postgres.NewRateRepository(db)
 	refreshRepo := postgres.NewRefreshRateRepository(db)
+	txManager := postgres.NewTxManager(db)
 	rateProvider := exchange_rates_api.NewClient(cfg.RateProvider.BaseUrl, cfg.RateProvider.AccessToken, 10*time.Second)
-	service := app.NewRateService(rateRepo, refreshRepo, rateProvider)
-	//TODO pass cancellable context
-	go service.StartWorker(context.Background())
+	service := app.NewRateService(rateRepo, refreshRepo, rateProvider, txManager)
 
-	handler := api.NewRouter(service)
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
 
-	log.Printf("Starting server on port 8080")
-	log.Fatal(http.ListenAndServe(":8080", handler))
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		service.StartWorker(ctx)
+	}()
+
+	router := api.NewRouter(service)
+
+	srv := &http.Server{
+		Addr:              cfg.HTTPAddr,
+		Handler:           router,
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       10 * time.Second,
+		WriteTimeout:      10 * time.Second,
+		IdleTimeout:       60 * time.Second,
+	}
+
+	srvErr := make(chan error, 1)
+	go func() {
+		log.Printf("Starting server on %s", srv.Addr)
+		srvErr <- srv.ListenAndServe()
+	}()
+
+	select {
+	case <-ctx.Done():
+		log.Printf("Shutdown signal received")
+
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if err := srv.Shutdown(shutdownCtx); err != nil {
+			log.Printf("server shutdown: %v", err)
+		}
+
+		if err := <-srvErr; err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Printf("server error: %v", err)
+		}
+	case err := <-srvErr:
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Printf("server error: %v", err)
+		}
+		stop()
+	}
+
+	wg.Wait()
 }
 
 func migrate(db *sql.DB, dir *string) {

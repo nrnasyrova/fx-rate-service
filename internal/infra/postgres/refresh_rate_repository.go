@@ -11,13 +11,15 @@ import (
 )
 
 type RefreshRateRepository struct {
-	db *sql.DB
+	db dbtx
 }
 
 func NewRefreshRateRepository(db *sql.DB) *RefreshRateRepository {
-	return &RefreshRateRepository{
-		db: db,
-	}
+	return &RefreshRateRepository{db: db}
+}
+
+func NewRefreshRateRepositoryTx(tx *sql.Tx) *RefreshRateRepository {
+	return &RefreshRateRepository{db: tx}
 }
 
 func (r *RefreshRateRepository) GetOrCreate(ctx context.Context, pair models.CurrencyPair) (string, bool, error) {

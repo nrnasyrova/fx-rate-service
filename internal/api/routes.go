@@ -2,11 +2,9 @@ package api
 
 import (
 	"net/http"
-
-	"github.com/nrnasyrova/fx-rate-service/internal/app"
 )
 
-func NewRouter(svc *app.RateService) http.Handler {
+func NewRouter(svc RateService) http.Handler {
 	mux := http.NewServeMux()
 
 	latest := NewLatestRateHandler(svc)

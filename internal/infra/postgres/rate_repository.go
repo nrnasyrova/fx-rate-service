@@ -9,13 +9,15 @@ import (
 )
 
 type RateRepository struct {
-	db *sql.DB
+	db dbtx
 }
 
 func NewRateRepository(db *sql.DB) *RateRepository {
-	return &RateRepository{
-		db: db,
-	}
+	return &RateRepository{db: db}
+}
+
+func NewRateRepositoryTx(tx *sql.Tx) *RateRepository {
+	return &RateRepository{db: tx}
 }
 
 func (r *RateRepository) GetLatest(ctx context.Context, pair models.CurrencyPair) (models.Rate, error) {

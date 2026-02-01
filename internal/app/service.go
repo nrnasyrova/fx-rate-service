@@ -10,6 +10,7 @@ type RateService struct {
 	rateRepo        RateRepository
 	rateRefreshRepo RefreshRequestRepository
 	rateProvider    RateProvider
+	txManager       TxManager
 	refreshChan     chan refreshTask
 }
 
@@ -18,12 +19,13 @@ type refreshTask struct {
 	pair models.CurrencyPair
 }
 
-func NewRateService(rateRepo RateRepository, rateRefreshRepo RefreshRequestRepository, rateProvider RateProvider) *RateService {
+func NewRateService(rateRepo RateRepository, rateRefreshRepo RefreshRequestRepository, rateProvider RateProvider, txManager TxManager) *RateService {
 	return &RateService{
 		rateRepo:        rateRepo,
 		rateRefreshRepo: rateRefreshRepo,
 		rateProvider:    rateProvider,
-		refreshChan:     make(chan refreshTask, 100),
+		txManager:       txManager,
+		refreshChan:     make(chan refreshTask, 100), //TODO if fills up what to do?
 	}
 }
 

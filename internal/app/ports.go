@@ -20,3 +20,7 @@ type RefreshRequestRepository interface {
 type RateProvider interface {
 	FetchRate(ctx context.Context, pair models.CurrencyPair) (float64, error)
 }
+
+type TxManager interface {
+	WithTx(ctx context.Context, fn func(ctx context.Context, rateRepo RateRepository, refreshRepo RefreshRequestRepository) error) error
+}
