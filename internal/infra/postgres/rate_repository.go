@@ -3,8 +3,10 @@ package postgres
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"time"
 
+	"github.com/go-faster/errors"
 	"github.com/nrnasyrova/fx-rate-service/internal/models"
 )
 
@@ -24,8 +26,7 @@ func (r *RateRepository) GetLatest(ctx context.Context, pair models.CurrencyPair
 	const q = `
 			SELECT base_currency, quote_currency, value_e6, updated_at 
 			FROM rates 
-			WHERE base_currency = $1 and quote_currency = $2
-			LIMIT 1`
+			WHERE base_currency = $1 and quote_currency = $2`
 
 	var (
 		baseCurrency  string
@@ -37,7 +38,11 @@ func (r *RateRepository) GetLatest(ctx context.Context, pair models.CurrencyPair
 	err := r.db.QueryRowContext(ctx, q, pair.BaseCurrency(), pair.QuoteCurrency()).Scan(&baseCurrency, &quoteCurrency, &valueE6, &updatedAt)
 
 	if err != nil {
-		return models.Rate{}, err
+		if errors.Is(err, sql.ErrNoRows) {
+			return models.Rate{}, models.ErrNotFound
+		}
+
+		return models.Rate{}, fmt.Errorf("scanning latest request: %w", err)
 	}
 
 	pair, err = models.NewCurrencyPair(baseCurrency, quoteCurrency)

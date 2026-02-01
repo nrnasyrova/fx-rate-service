@@ -7,7 +7,7 @@ import (
 func NewRouter(svc RateService) http.Handler {
 	mux := http.NewServeMux()
 
-	latest := NewLatestRateHandler(svc)
+	latest := NewGetLatestRateHandler(svc)
 	refresh := NewRefreshRateHandler(svc)
 	getRefreshReqById := NewGetRefreshRateByReqIdHandler(svc)
 
