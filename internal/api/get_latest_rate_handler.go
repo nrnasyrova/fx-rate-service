@@ -27,7 +27,7 @@ func (h *GetLatestRateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request)
 
 	parsedPair, err := models.ParseCurrencyPair(pair)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		handleError(w, err)
 		return
 	}
 
