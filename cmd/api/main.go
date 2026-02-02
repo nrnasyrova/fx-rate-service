@@ -23,9 +23,10 @@ import (
 )
 
 func main() {
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatalf("config: %v", err)
+	if os.Getenv("APP_ENV") != "production" {
+		if err := godotenv.Load(); err != nil {
+			log.Printf("env file load: %v", err)
+		}
 	}
 
 	cfg, err := config.FromEnv()
