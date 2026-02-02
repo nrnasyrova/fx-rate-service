@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"log"
 
 	"github.com/nrnasyrova/fx-rate-service/internal/models"
 )
@@ -19,13 +20,13 @@ type refreshTask struct {
 	pair models.CurrencyPair
 }
 
-func NewRateService(rateRepo RateRepository, rateRefreshRepo RefreshRequestRepository, rateProvider RateProvider, txManager TxManager) *RateService {
+func NewRateService(rateRepo RateRepository, rateRefreshRepo RefreshRequestRepository, rateProvider RateProvider, txManager TxManager, queueSize int) *RateService {
 	return &RateService{
 		rateRepo:        rateRepo,
 		rateRefreshRepo: rateRefreshRepo,
 		rateProvider:    rateProvider,
 		txManager:       txManager,
-		refreshChan:     make(chan refreshTask, 1000), //TODO if fills up what to do?
+		refreshChan:     make(chan refreshTask, queueSize),
 	}
 }
 
@@ -41,7 +42,15 @@ func (rs *RateService) RefreshRate(ctx context.Context, pair models.CurrencyPair
 	}
 
 	if created {
-		rs.refreshChan <- refreshTask{refreshReqID, pair}
+		select {
+		case rs.refreshChan <- refreshTask{refreshReqID, pair}:
+		default:
+			errMsg := models.ErrServiceOverloaded.Error()
+			err = rs.rateRefreshRepo.Update(ctx, refreshReqID, nil, models.Error, &errMsg)
+			if err != nil {
+				log.Printf("failed to update rate refresh req id %s, err: %s", refreshReqID, err)
+			}
+		}
 	}
 
 	return refreshReqID, nil

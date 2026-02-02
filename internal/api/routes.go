@@ -11,9 +11,9 @@ func NewRouter(svc RateService) http.Handler {
 	refresh := NewRefreshRateHandler(svc)
 	getRefreshReqById := NewGetRefreshRateByReqIdHandler(svc)
 
-	mux.Handle("/rates/latest", latest)
-	mux.Handle("/rates/refresh", refresh)
-	mux.Handle("/refresh-requests", getRefreshReqById)
+	mux.Handle("GET /rates/latest", latest)
+	mux.Handle("POST /refresh-requests", refresh)
+	mux.Handle("GET /refresh-requests", getRefreshReqById)
 
 	return mux
 }

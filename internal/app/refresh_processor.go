@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"log"
 
 	"github.com/nrnasyrova/fx-rate-service/internal/models"
 )
@@ -41,5 +42,7 @@ func (rs *RateService) ProcessRefresh(ctx context.Context, id string, pair model
 
 func (rs *RateService) handleRefreshError(ctx context.Context, id string, originalErr error) {
 	errMsg := originalErr.Error()
-	_ = rs.rateRefreshRepo.Update(ctx, id, nil, models.Error, &errMsg)
+	if err := rs.rateRefreshRepo.Update(ctx, id, nil, models.Error, &errMsg); err != nil {
+		log.Printf("failed to update refresh request %s with error state: %v (original error: %v)", id, err, originalErr)
+	}
 }

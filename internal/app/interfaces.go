@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"time"
 
 	"github.com/nrnasyrova/fx-rate-service/internal/models"
 )
@@ -23,4 +24,8 @@ type RateProvider interface {
 
 type TxManager interface {
 	WithTx(ctx context.Context, fn func(ctx context.Context, rateRepo RateRepository, refreshRepo RefreshRequestRepository) error) error
+}
+
+type StaleRefreshMarker interface {
+	MarkStaleProcessingRequest(ctx context.Context, staleBefore time.Time) error
 }

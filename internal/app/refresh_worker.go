@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"log"
+	"sync"
 )
 
 type RefreshWorker struct {
@@ -10,7 +11,7 @@ type RefreshWorker struct {
 	tasks     <-chan refreshTask
 }
 
-func NewRefreshWorker(processor RefreshProcessor, tasks <-chan refreshTask) *RefreshWorker {
+func newRefreshWorker(processor RefreshProcessor, tasks <-chan refreshTask) *RefreshWorker {
 	return &RefreshWorker{processor: processor, tasks: tasks}
 }
 
@@ -27,6 +28,17 @@ func (w *RefreshWorker) Run(ctx context.Context) {
 	}
 }
 
-func (rs *RateService) StartWorker(ctx context.Context) {
-	NewRefreshWorker(rs, rs.refreshChan).Run(ctx)
+func (rs *RateService) StartWorkerPool(ctx context.Context, numWorkers int, wg *sync.WaitGroup) {
+	for i := 0; i < numWorkers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			rs.startWorker(ctx)
+		}()
+	}
+	log.Printf("Started %d refresh workers", numWorkers)
+}
+
+func (rs *RateService) startWorker(ctx context.Context) {
+	newRefreshWorker(rs, rs.refreshChan).Run(ctx)
 }

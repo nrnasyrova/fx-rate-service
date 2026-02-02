@@ -6,10 +6,6 @@ import (
 	"time"
 )
 
-type StaleRefreshMarker interface {
-	MarkStaleProcessingRequest(ctx context.Context, staleBefore time.Time) error
-}
-
 type StaleRefreshSweeper struct {
 	repo         StaleRefreshMarker
 	interval     time.Duration

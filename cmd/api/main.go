@@ -51,17 +51,13 @@ func main() {
 	refreshRepo := postgres.NewRefreshRateRepository(db)
 	txManager := postgres.NewTxManager(db)
 	rateProvider := exchange_rates_api.NewClient(cfg.RateProvider.BaseUrl, cfg.RateProvider.AccessToken, 10*time.Second)
-	service := app.NewRateService(rateRepo, refreshRepo, rateProvider, txManager)
+	service := app.NewRateService(rateRepo, refreshRepo, rateProvider, txManager, cfg.RefreshWorker.QueueSize)
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
 	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		service.StartWorker(ctx)
-	}()
+	service.StartWorkerPool(ctx, cfg.RefreshWorker.NumWorkers, &wg)
 
 	wg.Add(1)
 	go func() {

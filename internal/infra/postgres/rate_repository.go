@@ -3,10 +3,10 @@ package postgres
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
-	"github.com/go-faster/errors"
 	"github.com/nrnasyrova/fx-rate-service/internal/models"
 )
 
