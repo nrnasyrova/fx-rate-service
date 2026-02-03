@@ -16,7 +16,7 @@ type getRefreshReqByIdResponse struct {
 	ID        string    `json:"id"`
 	Pair      string    `json:"pair"`
 	Status    string    `json:"status"`
-	QuoteE6   *int64    `json:"quote_e6,omitempty"`
+	ValueE6   *int64    `json:"value_e6,omitempty"`
 	ErrorMsg  *string   `json:"error_message,omitempty"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
@@ -54,7 +54,7 @@ func (h *GetRefreshReqByIdHandler) ServeHTTP(w http.ResponseWriter, r *http.Requ
 		ID:        refreshReq.ID,
 		Pair:      refreshReq.Pair.String(),
 		Status:    refreshReq.Status.String(),
-		QuoteE6:   quoteE6,
+		ValueE6:   quoteE6,
 		ErrorMsg:  refreshReq.ErrorMsg,
 		UpdatedAt: refreshReq.UpdatedAt,
 	}

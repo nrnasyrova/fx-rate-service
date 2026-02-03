@@ -23,6 +23,32 @@ import (
 )
 
 func main() {
+	cfg, err := loadConfig()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	db, err := initDB(cfg)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer closeDB(db)
+
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	var wg sync.WaitGroup
+	service := initRateService(cfg, db, &wg, ctx)
+
+	router := api.NewRouter(service)
+	if err := runHTTPServer(ctx, cfg.HTTPAddr, router); err != nil {
+		log.Printf("server error: %v", err)
+		stop()
+	}
+
+	wg.Wait()
+}
+
+func loadConfig() (*config.Config, error) {
 	if os.Getenv("APP_ENV") != "production" {
 		if err := godotenv.Load(); err != nil {
 			log.Printf("env file load: %v", err)
@@ -31,34 +57,30 @@ func main() {
 
 	cfg, err := config.FromEnv()
 	if err != nil {
-		log.Fatalf("config: %v", err)
+		return nil, fmt.Errorf("config: %w", err)
 	}
+	return &cfg, nil
+}
 
-	db, err := postgres.Open(cfg.Postgres.DSN)
-	if err != nil {
-		log.Fatalf("db open: %v", err)
-	}
-
-	defer func(db *sql.DB) {
-		if err := db.Close(); err != nil {
-			log.Printf("db close: %v", err)
-		}
-	}(db)
-
-	migrate(db, &cfg.Migrations.Dir)
-
-	//TODO configure DI if have time
+func initRateService(cfg *config.Config, db *sql.DB, wg *sync.WaitGroup, ctx context.Context) *app.RateService {
 	rateRepo := postgres.NewRateRepository(db)
 	refreshRepo := postgres.NewRefreshRateRepository(db)
 	txManager := postgres.NewTxManager(db)
-	rateProvider := exchange_rates_api.NewClient(cfg.RateProvider.BaseUrl, cfg.RateProvider.AccessToken, 10*time.Second)
-	service := app.NewRateService(rateRepo, refreshRepo, rateProvider, txManager, cfg.RefreshWorker.QueueSize)
+	rateProvider := exchange_rates_api.NewClient(
+		cfg.RateProvider.BaseUrl,
+		cfg.RateProvider.AccessToken,
+		10*time.Second,
+	)
 
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
+	service := app.NewRateService(
+		rateRepo,
+		refreshRepo,
+		rateProvider,
+		txManager,
+		cfg.RefreshWorker.QueueSize,
+	)
 
-	var wg sync.WaitGroup
-	service.StartWorkerPool(ctx, cfg.RefreshWorker.NumWorkers, &wg)
+	service.StartWorkerPool(ctx, cfg.RefreshWorker.NumWorkers, wg)
 
 	wg.Add(1)
 	go func() {
@@ -67,53 +89,68 @@ func main() {
 		sweeper.Run(ctx)
 	}()
 
-	router := api.NewRouter(service)
+	return service
+}
 
+func initDB(cfg *config.Config) (db *sql.DB, err error) {
+	db, err = postgres.Open(cfg.Postgres.DSN)
+	if err != nil {
+		return nil, fmt.Errorf("db open: %w", err)
+	}
+
+	defer func() {
+		if err != nil && db != nil {
+			_ = db.Close()
+		}
+	}()
+
+	err = goose.SetDialect("postgres")
+	if err != nil {
+		return nil, fmt.Errorf("goose dialect: %w", err)
+	}
+
+	err = goose.Up(db, cfg.Migrations.Dir)
+	if err != nil {
+		return nil, fmt.Errorf("goose up: %w", err)
+	}
+
+	log.Printf("migrations applied")
+	return db, nil
+}
+
+func closeDB(db *sql.DB) {
+	if err := db.Close(); err != nil {
+		log.Printf("db close: %v", err)
+	}
+}
+
+func runHTTPServer(ctx context.Context, addr string, handler http.Handler) error {
 	srv := &http.Server{
-		Addr:              cfg.HTTPAddr,
-		Handler:           router,
+		Addr:              addr,
+		Handler:           handler,
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       10 * time.Second,
 		WriteTimeout:      10 * time.Second,
 		IdleTimeout:       60 * time.Second,
 	}
 
-	srvErr := make(chan error, 1)
+	serverErr := make(chan error, 1)
 	go func() {
 		log.Printf("Starting server on %s", srv.Addr)
-		srvErr <- srv.ListenAndServe()
+		serverErr <- srv.ListenAndServe()
 	}()
 
 	select {
 	case <-ctx.Done():
 		log.Printf("Shutdown signal received")
-
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
-		if err := srv.Shutdown(shutdownCtx); err != nil {
-			log.Printf("server shutdown: %v", err)
+		return srv.Shutdown(shutdownCtx)
+
+	case e := <-serverErr:
+		if errors.Is(e, http.ErrServerClosed) {
+			return nil
 		}
-
-		if err := <-srvErr; err != nil && !errors.Is(err, http.ErrServerClosed) {
-			log.Printf("server error: %v", err)
-		}
-	case err := <-srvErr:
-		if err != nil && !errors.Is(err, http.ErrServerClosed) {
-			log.Printf("server error: %v", err)
-		}
-		stop()
+		return e
 	}
-
-	wg.Wait()
-}
-
-func migrate(db *sql.DB, dir *string) {
-	if err := goose.SetDialect("postgres"); err != nil {
-		log.Fatal(err)
-	}
-	if err := goose.Up(db, *dir); err != nil {
-		log.Fatal(err)
-	}
-
-	fmt.Println("migrations applied")
 }
